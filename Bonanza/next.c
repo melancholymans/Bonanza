@@ -6,8 +6,7 @@
 int
 gen_next_move( tree_t * restrict ptree, int ply, int turn )
 {
-  switch ( ptree->anext_move[ply].next_phase )
-    {
+  switch ( ptree->anext_move[ply].next_phase ){
     case next_move_hash:
       {
 	unsigned int * restrict pmove;

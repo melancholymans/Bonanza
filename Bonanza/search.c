@@ -19,8 +19,7 @@ static int rep_type( const tree_t * restrict ptree, int n, int i, int ply,
 #endif
 
 int
-search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,
-	int ply, unsigned int state_node )
+search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,int ply, unsigned int state_node )
 {
   int value, alpha_old;
 
@@ -310,9 +309,7 @@ search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,
     evaluate( ptree, ply, turn );
 
     /* expand all of off-springs */
-    while ( ptree->nsuc_check[ply]
-	    ? gen_next_evasion( ptree, ply, turn )
-	    : gen_next_move( ptree, ply, turn ) ) {
+    while ( ptree->nsuc_check[ply]? gen_next_evasion( ptree, ply, turn ): gen_next_move( ptree, ply, turn ) ) {
 
       DOut( "\nexpand %s (%" PRIu64 ")",
 	    str_CSA_move(MOVE_CURR), ptree->node_searched );
