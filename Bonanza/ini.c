@@ -118,7 +118,6 @@ ini( tree_t * restrict ptree )
 {
   int i;
 
-  /*if ( ini_fv() < 0 ) { return -1; }*/
   if ( load_fv() < 0 ) { return -1; }
 
   for ( i = 0; i < 31; i++ ) { p_value[i]       = 0; }
