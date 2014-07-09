@@ -1,75 +1,78 @@
 #include <assert.h>
 #include "shogi.h"
 
-void
-check_futile_score_quies( const tree_t * restrict ptree, unsigned int move,
-			  int old_val, int new_val, int turn )
+void check_futile_score_quies( const tree_t * restrict ptree, unsigned int move,int old_val, int new_val, int turn )
 {
-  const int ifrom = I2From(move);
-  int fsp, fmt, ipc_cap;
+    const int ifrom = I2From(move);
+    int fsp, fmt, ipc_cap;
 
-  if ( I2PieceMove(move) == king )
-    {
-      fmt = new_val;
-      fsp = new_val - old_val;
+    if ( I2PieceMove(move) == king ){
+        fmt = new_val;
+        fsp = new_val - old_val;
 
-      if ( turn )
-	{
-	  fmt     += MATERIAL;
-	  ipc_cap  = -(int)UToCap(move);
-	}
-      else {
-	fmt     -= MATERIAL;
-	ipc_cap  = (int)UToCap(move);
-      }
+        if ( turn ){
+            fmt     += MATERIAL;
+            ipc_cap  = -(int)UToCap(move);
+        }
+        else {
+            fmt     -= MATERIAL;
+            ipc_cap  = (int)UToCap(move);
+        }
 
-      if ( ipc_cap )
-	{
-	  fmt -= p_value_ex[15+ipc_cap];
-	  fsp -= estimate_score_diff( ptree, move, turn );
-	  if ( fsp > fmg_cap_king ) { fmg_cap_king = fsp; }
-	}
-      else if ( fsp > fmg_misc_king ) { fmg_misc_king = fsp; }
+        if ( ipc_cap ){
+            fmt -= p_value_ex[15+ipc_cap];
+            fsp -= estimate_score_diff( ptree, move, turn );
+            if ( fsp > fmg_cap_king ) { 
+                fmg_cap_king = fsp; 
+            }
+        }
+        else if ( fsp > fmg_misc_king ) { 
+            fmg_misc_king = fsp; 
+        }
 
-      if ( fmt > fmg_mt ) { fmg_mt = fmt; }
+        if ( fmt > fmg_mt ) { 
+            fmg_mt = fmt; 
+        }
     }
-  else {
-    fsp = new_val - old_val - estimate_score_diff( ptree, move, turn );
-    if ( turn )
-      {
-	fmt     = new_val + MATERIAL;
-	ipc_cap = -(int)UToCap(move);
-      }
     else {
-      fmt      = new_val - MATERIAL;
-      ipc_cap  = (int)UToCap(move);
-    }
-    if ( ifrom >= nsquare )
-      {
-	if ( fsp > fmg_drop ) { fmg_drop = fsp; }
-      }
-    else {
-      if ( I2IsPromote(move) )
-	{
-	  fmt -= benefit2promo[7+I2PieceMove(move)];
-	}
+        fsp = new_val - old_val - estimate_score_diff( ptree, move, turn );
+        if ( turn ){
+            fmt     = new_val + MATERIAL;
+            ipc_cap = -(int)UToCap(move);
+        }
+        else {
+            fmt      = new_val - MATERIAL;
+            ipc_cap  = (int)UToCap(move);
+        }
+        if ( ifrom >= nsquare ){
+            if ( fsp > fmg_drop ) { 
+                fmg_drop = fsp;
+            }
+        }
+        else {
+            if ( I2IsPromote(move) ){
+                fmt -= benefit2promo[7+I2PieceMove(move)];
+            }
 
-      if ( ipc_cap )
-	{
-	  fmt -= p_value_ex[15+ipc_cap];
-	  if ( fsp > fmg_cap ) { fmg_cap = fsp; }
-	}
-      else if ( fsp > fmg_misc ) { fmg_misc = fsp; }
-    }
+            if ( ipc_cap ){
+                fmt -= p_value_ex[15+ipc_cap];
+                if ( fsp > fmg_cap ) { 
+                    fmg_cap = fsp; 
+                }
+            }
+            else if ( fsp > fmg_misc ) { 
+                fmg_misc = fsp; 
+            }
+        }
     
-    if ( fmt > fmg_mt )   { fmg_mt = fmt; }
-  }
+        if ( fmt > fmg_mt )   { 
+            fmg_mt = fmt; 
+        }
+    }
 }
 
 
-int
-eval_max_score( const tree_t * restrict ptree, unsigned int move,
-		int stand_pat, int turn, int diff )
+int eval_max_score( const tree_t * restrict ptree, unsigned int move,int stand_pat, int turn, int diff )
 {
   int score_mt, score_sp, ipc_cap;
 
@@ -120,9 +123,7 @@ eval_max_score( const tree_t * restrict ptree, unsigned int move,
 }
 
 
-int
-estimate_score_diff( const tree_t * restrict ptree, unsigned int move,
-		     int turn )
+int estimate_score_diff( const tree_t * restrict ptree, unsigned int move,int turn )
 {
   const int ibk   = SQ_BKING;
   const int iwk   = Inv(SQ_WKING);

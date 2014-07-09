@@ -5,8 +5,7 @@
 #include "shogi.h"
 
 
-int
-ini_game( tree_t * restrict ptree, const min_posi_t *pmin_posi, int flag,
+int ini_game( tree_t * restrict ptree, const min_posi_t *pmin_posi, int flag,
 	  const char *str_name1, const char *str_name2 )
 {
   bitboard_t bb;
