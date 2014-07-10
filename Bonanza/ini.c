@@ -24,8 +24,7 @@ static void ini_attack_tables( void );
 static void ini_random_table( void );
 
 
-static int
-load_fv( void )
+static int load_fv( void )
 {
   FILE *pf;
   size_t size;
@@ -50,71 +49,11 @@ load_fv( void )
 
   iret = file_close( pf );
   if ( iret < 0 ) { return iret; }
-
-#if 0
-#  define X0 -10000
-#  define X1 +10000
-  {
-    unsigned int a[X1-X0+1];
-    int i, n, iv;
-
-    for ( i = 0; i < X1-X0+1; i++ ) { a[i] = 0; }
-    n = nsquare * pos_n;
-    for ( i = 0; i < n; i++ )
-      {
-	iv = pc_on_sq[0][i];
-	if      ( iv < X0 ) { iv = X0; }
-	else if ( iv > X1 ) { iv = X1; }
-	a[ iv - X0 ] += 1;
-      }
-
-    pf = file_open( "dist.dat", "w" );
-    if ( pf == NULL ) { return -2; }
-
-    for ( i = X0; i <= X1; i++ ) { fprintf( pf, "%d %d\n", i, a[i-X0] ); }
-
-    iret = file_close( pf );
-    if ( iret < 0 ) { return iret; }
-  }
-#  undef x0
-#  undef x1
-#endif
-
   return 1;
 }
 
-/*
-static int
-ini_fv( void )
-{
-  FILE *pf;
-  size_t size, i;
 
-  pf = file_open( str_fv, "wb" );
-  if ( pf == NULL ) { return -2; }
-
-  size = nsquare * pos_n;
-  for ( i = 0; i < size; i++ ) { pc_on_sq[0][i] = 0; }
-  if ( fwrite( pc_on_sq, sizeof(short), size, pf ) != size )
-    {
-      str_error = str_io_error;
-      return -2;
-    }
-
-  size = nsquare * nsquare * kkp_end;
-  for ( i = 0; i < size; i++ ) { kkp[0][0][i] = 0; }
-  if ( fwrite( kkp, sizeof(short), size, pf ) != size )
-    {
-      str_error = str_io_error;
-      return -2;
-    }
-
-  return file_close( pf );
-}
-*/
-
-int
-ini( tree_t * restrict ptree )
+int ini( tree_t * restrict ptree )
 {
   int i;
 
@@ -301,8 +240,7 @@ fin( void )
 }
 
 
-void
-set_derivative_param( void )
+void set_derivative_param( void )
 {
   p_value_ex[15+pawn]       = p_value[15+pawn]       + p_value[15+pawn];
   p_value_ex[15+lance]      = p_value[15+lance]      + p_value[15+lance];
@@ -365,8 +303,7 @@ set_derivative_param( void )
 }
 
 
-static void
-ini_is_same( void )
+static void ini_is_same( void )
 {
   int p[16], i, j;
 
@@ -397,8 +334,7 @@ ini_is_same( void )
 }
 
 
-static void
-ini_tables( void )
+static void ini_tables( void )
 {
   const unsigned char aini_rl90[] = { A1, A2, A3, A4, A5, A6, A7, A8, A9,
 				      B1, B2, B3, B4, B5, B6, B7, B8, B9,
@@ -579,8 +515,7 @@ ini_tables( void )
 }
 
 
-static void
-ini_random_table( void )
+static void ini_random_table( void )
 {
   int i;
 
@@ -644,8 +579,7 @@ ini_random_table( void )
 }
 
 
-static void
-ini_attack_tables( void )
+static void ini_attack_tables( void )
 {
   int irank, ifile, pcs, i;
   bitboard_t bb;
@@ -865,8 +799,7 @@ ini_attack_tables( void )
 }
 
 
-static void
-set_attacks( int irank, int ifile, bitboard_t *pbb )
+static void set_attacks( int irank, int ifile, bitboard_t *pbb )
 {
   if ( irank >= rank1 && irank <= rank9 && ifile >= file1 && ifile <= file9 )
     {
@@ -875,8 +808,7 @@ set_attacks( int irank, int ifile, bitboard_t *pbb )
 }
 
 
-static bitboard_t
-bb_set_mask( int isquare )
+static bitboard_t bb_set_mask( int isquare )
 {
   bitboard_t bb;
   
@@ -899,8 +831,7 @@ bb_set_mask( int isquare )
 }
 
 
-static void
-ini_check_table( void )
+static void ini_check_table( void )
 {
   bitboard_t bb_check, bb;
   int iking, icheck;

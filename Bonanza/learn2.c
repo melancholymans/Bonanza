@@ -62,8 +62,7 @@ add_param( param_t *p1, const param_t *p2 )
 }
 
 
-void
-fill_param_zero( void )
+void fill_param_zero( void )
 {
   int i;
 
@@ -89,8 +88,7 @@ fill_param_zero( void )
 }
 
 
-void
-param_sym( param_t *p )
+void param_sym( param_t *p )
 {
   int q, r, il, ir, ir0, jl, jr, k0l, k0r, k1l, k1r;
 
@@ -319,8 +317,7 @@ renovate_param( const param_t *pd )
 }
 
 
-int
-out_param( void )
+int out_param( void )
 {
   size_t size;
   FILE *pf;

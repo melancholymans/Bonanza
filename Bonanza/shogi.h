@@ -59,14 +59,6 @@ extern unsigned char ailast_one[512];
 
 #endif
 
-/*
-  #define BK_ULTRA_NARROW
-  #define BK_COM
-  #define BK_SMALL
-  #define NO_NULL_PRUNE
-  #define NO_STDOUT
-  #define DBG_EASY
-*/
 
 #if defined(CSASHOGI)
 #  define NO_STDOUT

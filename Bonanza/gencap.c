@@ -1,7 +1,6 @@
 #include "shogi.h"
 
-unsigned int *
-b_gen_captures( const tree_t * restrict ptree, unsigned int * restrict pmove )
+unsigned int * b_gen_captures( const tree_t * restrict ptree, unsigned int * restrict pmove )
 {
   bitboard_t bb_movable, bb_capture, bb_piece, bb_desti;
   unsigned int utemp;
@@ -230,8 +229,7 @@ b_gen_captures( const tree_t * restrict ptree, unsigned int * restrict pmove )
 }
 
 
-unsigned int *
-w_gen_captures( const tree_t * restrict ptree, unsigned int * restrict pmove )
+unsigned int * w_gen_captures( const tree_t * restrict ptree, unsigned int * restrict pmove )
 {
   bitboard_t bb_movable, bb_capture, bb_piece, bb_desti;
   unsigned int utemp;
