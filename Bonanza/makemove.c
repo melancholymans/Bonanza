@@ -71,30 +71,30 @@ void make_move_b( tree_t * restrict ptree, unsigned int move, int ply )
     if ( from >= nsquare ){
         switch ( From2Drop(from) ){
         case pawn:   
-            Xor( to-nfile, BB_BPAWN_ATK );
-            DropB( PAWN,   pawn   );  
-            break;
+        Xor( to-nfile, BB_BPAWN_ATK );
+        DropB( PAWN,   pawn   );  
+        break;
         case lance:  
-            DropB( LANCE,  lance  );  
-            break;
+        DropB( LANCE,  lance  );  
+        break;
         case knight: 
-            DropB( KNIGHT, knight );  
-            break;
+        DropB( KNIGHT, knight );  
+        break;
         case silver: 
-            DropB( SILVER, silver );  
-            break;
+        DropB( SILVER, silver );  
+        break;
         case gold:   
-            DropB( GOLD,   gold   );
-            Xor( to, BB_BTGOLD );     
-            break;
+        DropB( GOLD,   gold   );
+        Xor( to, BB_BTGOLD );     
+        break;
         case bishop: DropB( BISHOP, bishop );
-            Xor( to, BB_B_BH );       
-            break;
+        Xor( to, BB_B_BH );       
+        break;
         default:     
-            assert( From2Drop(from) == rook );
-            DropB( ROOK,  rook );
-            Xor( to, BB_B_RD );       
-            break;
+        assert( From2Drop(from) == rook );
+        DropB( ROOK,  rook );
+        Xor( to, BB_B_RD );       
+        break;
         }
         Xor( to, BB_BOCCUPY );
         XorFile( to, OCCUPIED_FILE );

@@ -18,8 +18,7 @@
                                               BOARD[from] = piece
 
 
-void
-unmake_move_b( tree_t * restrict ptree, unsigned int move, int ply )
+void unmake_move_b( tree_t * restrict ptree, unsigned int move, int ply )
 {
   int from = (int)I2From(move);
   int to   = (int)I2To(move);
