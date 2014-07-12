@@ -114,10 +114,6 @@ void make_move_b( tree_t * restrict ptree, unsigned int move, int ply )
         if ( is_promote ) 
             switch( ipiece_move ){
             case pawn:   
-                Xor( to, BB_BPAWN_ATK );
-                Xor( to, BB_BTGOLD );
-                NocapProB( PAWN,   PRO_PAWN,   pawn,   pro_pawn );   
-                break;
             case lance:  
                 Xor( to, BB_BTGOLD );
                 NocapProB( LANCE,  PRO_LANCE,  lance,  pro_lance );  
