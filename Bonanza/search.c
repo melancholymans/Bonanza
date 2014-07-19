@@ -18,578 +18,502 @@ static int rep_type( const tree_t * restrict ptree, int n, int i, int ply,
 #  define DOut( ... )
 #endif
 
-int
-search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,int ply, unsigned int state_node )
+int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,int ply, unsigned int state_node )
 {
-  int value, alpha_old;
+    int value, alpha_old;
 
-  if ( ! ptree->nsuc_check[ply]	&& depth < PLY_INC )
+    if ( ! ptree->nsuc_check[ply]	&& depth < PLY_INC )
     {
-      return search_quies( ptree, alpha, beta, turn, ply, 1 );
+        return search_quies( ptree, alpha, beta, turn, ply, 1 );
+    }
+    ptree->node_searched++;
+
+    if ( ply >= PLY_MAX-1 )
+    {
+        value = evaluate( ptree, ply, turn );
+        if ( alpha < value && value < beta ) { pv_close( ptree, ply, no_rep ); }
+        MOVE_CURR = MOVE_NA;
+        return value;
     }
 
 
-#if defined(DBG_SEARCH)
-  int dbg_flag = 0;
-  if ( iteration_depth == 3 && ply == 3
-       && ! strcmp( str_CSA_move(ptree->current_move[1]),  "7776FU" )
-       && ! strcmp( str_CSA_move(ptree->current_move[2]),  "3334FU" ) )
+    #if ! defined(MINIMUM)
+    if ( ! ( game_status & flag_learning ) )
+    #endif
     {
-      dbg_flag = 1;
-      Out( "search start (d%.1f %" PRIu64 ")\n",
-	   (double)depth / (double)PLY_INC, ptree->node_searched );
-    }
-#endif
+        /* check time and input */
+        #if defined(TLP)
+        if ( ! ptree->tlp_id )
+        #endif
+        if ( node_next_signal < ++node_last_check && detect_signals( ptree ) )
+        {
+            root_abort = 1;
+            return 0;
+        }
 
-  ptree->node_searched++;
-
-  if ( ply >= PLY_MAX-1 )
-    {
-      value = evaluate( ptree, ply, turn );
-      if ( alpha < value && value < beta ) { pv_close( ptree, ply, no_rep ); }
-      MOVE_CURR = MOVE_NA;
-      return value;
-    }
-
-
-#if ! defined(MINIMUM)
-  if ( ! ( game_status & flag_learning ) )
-#endif
-    {
-      /* check time and input */
-#if defined(TLP)
-      if ( ! ptree->tlp_id )
-#endif
-	if ( node_next_signal < ++node_last_check && detect_signals( ptree ) )
-	  {
-	    root_abort = 1;
-	    return 0;
-	  }
-
-      /* repetitions */
-      ptree->nrep_tried++;
-      switch ( detect_rep( ptree, ply, turn ) )
-	{
-	case black_superi_rep:
-	  value = turn ? -score_inferior : score_inferior;
-	  if ( alpha < value
-	       && value < beta ) { pv_close( ptree, ply, black_superi_rep ); }
-	  ptree->nsuperior_rep++;
-	  MOVE_CURR = MOVE_NA;
-	  return value;
+        /* repetitions */
+        ptree->nrep_tried++;
+        switch ( detect_rep( ptree, ply, turn ) )
+        {
+            case black_superi_rep:
+            value = turn ? -score_inferior : score_inferior;
+            if ( alpha < value && value < beta ) { pv_close( ptree, ply, black_superi_rep ); }
+            ptree->nsuperior_rep++;
+            MOVE_CURR = MOVE_NA;
+            return value;
 	  
-	case white_superi_rep:
-	  value = turn ? score_inferior : -score_inferior;
-	  if ( alpha < value
-	       && value < beta ) { pv_close( ptree, ply, white_superi_rep ); }
-	  ptree->nsuperior_rep++;
-	  MOVE_CURR = MOVE_NA;
-	  return value;
+            case white_superi_rep:
+            value = turn ? score_inferior : -score_inferior;
+            if ( alpha < value && value < beta ) { pv_close( ptree, ply, white_superi_rep ); }
+            ptree->nsuperior_rep++;
+            MOVE_CURR = MOVE_NA;
+            return value;
 	  
-	case four_fold_rep:
-	  if ( alpha < score_draw
-	       && score_draw < beta ) { pv_close( ptree, ply, four_fold_rep );}
-	  ptree->nfour_fold_rep++;
-	  MOVE_CURR = MOVE_NA;
-	  return score_draw;
+            case four_fold_rep:
+            if ( alpha < score_draw && score_draw < beta ) { pv_close( ptree, ply, four_fold_rep );}
+            ptree->nfour_fold_rep++;
+            MOVE_CURR = MOVE_NA;
+            return score_draw;
 	  
-	case perpetual_check:
-	  ptree->nperpetual_check++;
-	  MOVE_CURR = MOVE_NA;
-	  return score_foul;
+            case perpetual_check:
+            ptree->nperpetual_check++;
+            MOVE_CURR = MOVE_NA;
+            return score_foul;
 	  
-	case perpetual_check2:
-	  if ( ply > 4 )
-	    {
-	      ptree->nperpetual_check++;
-	      MOVE_CURR = MOVE_NA;
-	      return -score_foul;
-	    }
-	  break;
-	}
+            case perpetual_check2:
+            if ( ply > 4 )
+            {
+                ptree->nperpetual_check++;
+                MOVE_CURR = MOVE_NA;
+                return -score_foul;
+            }
+            break;
+        }
       
-      ptree->nreject_tried++;
-      if ( rejections_probe( ptree, turn, ply ) )
-	{
-	  ptree->nreject_done++;
-	  if ( alpha < score_inferior && score_inferior < beta )
-	    {
-	      pv_close( ptree, ply, turn ? white_superi_rep:black_superi_rep );
-	    }
-	  MOVE_CURR = MOVE_NA;
-	  return score_inferior;
-	}
+        ptree->nreject_tried++;
+        if ( rejections_probe( ptree, turn, ply ) )
+        {
+            ptree->nreject_done++;
+            if ( alpha < score_inferior && score_inferior < beta )
+            {
+                pv_close( ptree, ply, turn ? white_superi_rep:black_superi_rep );
+            }
+            MOVE_CURR = MOVE_NA;
+            return score_inferior;
+        }
     }
 
-  /*
+    /*
     no repetitions.  worst situation of this node is checkmate,
     and the best is to force checkmate within 1-ply.
-  */
-  alpha_old = alpha;
-  value = - ( score_mate1ply + 2 - ply );
-  if ( alpha < value )
+    */
+    alpha_old = alpha;
+    value = - ( score_mate1ply + 2 - ply );
+    if ( alpha < value )
     {
-      if ( beta <= value )
-	{
-	  MOVE_CURR = MOVE_NA;
-	  return value;
-	}
-      alpha = value;
+        if ( beta <= value )
+        {
+            MOVE_CURR = MOVE_NA;
+            return value;
+        }
+        alpha = value;
     }
-  else {
-    value = score_mate1ply + 1 - ply;
-    if ( value <= alpha ) { return value; }
-  }
-
-#if defined(NO_NULL_PRUNE)
-  state_node &= ~node_do_null;
-#endif
-
-  ptree->amove_hash[ply] = 0;
-#if ! defined(MINIMUM)
-  if ( ! ( game_status & flag_learning ) )
-#endif
-    {
-      /* probe the transposition table */
-      int tv = hash_probe( ptree, ply, depth, turn, alpha, beta, state_node );
-      switch ( tv )
-	{
-	case value_exact:
-	  if ( alpha < HASH_VALUE )
-	    {
-	      if ( HASH_VALUE < beta ) { pv_close( ptree, ply, hash_hit ); }
-	      else {
-		MOVE_CURR = ptree->amove_hash[ply];
-		assert( is_move_valid( ptree, MOVE_CURR, turn ) );
-	      }
-	    }
-	  return HASH_VALUE;
-	  
-	case value_lower:
-	  MOVE_CURR = ptree->amove_hash[ply];
-	  assert( beta <= HASH_VALUE );
-	  assert( ! IsMove(MOVE_CURR)
-		  || is_move_valid( ptree, MOVE_CURR, turn ) );
-	  if ( beta == alpha_old + 1 ) { return HASH_VALUE; }
-	  break;
-	  
-	case value_upper:
-	  assert( HASH_VALUE <= alpha );
-	  if ( beta == alpha_old + 1 ) { return HASH_VALUE; }
-	  break;
-	  
-	default:
-	  state_node = tv;
-	}
-    }
-
-  DOut( "\nhash cut passed" );
-
-  if ( depth >= REJEC_MIN_DEPTH ) { add_rejections( ptree, turn, ply ); }
-  
-
-  if ( ! ptree->nsuc_check[ply] )
-    {
-      /* detect a move mates in 1-ply */
-      if ( state_node & node_do_mate )
-	{
-	  MOVE_CURR = IsMateIn1Ply(turn);
-	  if ( MOVE_CURR )
-	    {
-	      value = score_mate1ply + 1 - ply;
-
-	      hash_store( ptree, ply, depth, turn, value_exact, value,
-			  MOVE_CURR, 0 );
-
-	      if ( alpha < value
-		   && value < beta ) { pv_close( ptree, ply, mate_search ); }
-
-	      if ( depth >= REJEC_MIN_DEPTH )
-		{
-		  sub_rejections( ptree, turn, ply );
-		}
-	      assert( is_move_valid( ptree, MOVE_CURR, turn ) );
-	      return value;
-	    }
-	}
-
-      /* null move pruning */
-      if ( 2*PLY_INC <= depth
-	   && ( state_node & node_do_null )
-	   && beta == alpha_old + 1
-	   && beta <= evaluate( ptree, ply, turn ) )
-	{
-	  int null_depth, nrep;
-	  
-	  null_depth = NullDepth(depth);
-	  nrep       = root_nrep + ply - 1;
-
-	  MOVE_CURR                   = MOVE_PASS;
-	  ptree->move_last[ply]       = ptree->move_last[ply-1];
-	  ptree->stand_pat[ply+1]     = (short)( - ptree->stand_pat[ply] );
-	  ptree->nsuc_check[ply+1]    = 0;
-	  ptree->rep_board_list[nrep] = HASH_KEY;
-	  ptree->rep_hand_list[nrep]  = HAND_B;
-	  ptree->null_pruning_tried++;
-
-	  value = -search( ptree, -beta, 1-beta, Flip(turn), null_depth,
-			   ply+1, node_do_mate | node_do_recap
-			   | node_do_futile );
-	  if ( SEARCH_ABORT )
-	    {
-	      if ( depth >= REJEC_MIN_DEPTH )
-		{
-		  sub_rejections( ptree, turn, ply );
-		}
-	      return 0;
-	    }
-	  
-	  if ( beta <= value )
-	    {
-	      ptree->null_pruning_done++;
-	      if ( null_depth < PLY_INC )
-		{
-		  hash_store( ptree, ply, depth, turn, value_lower,
-			      value, MOVE_NA, state_node );
-		}
-	      if ( depth >= REJEC_MIN_DEPTH )
-		{
-		  sub_rejections( ptree, turn, ply );
-		}
-	      
-	      DOut( "\nnull move cut!\n" );
-	      
-	      assert( ! IsMove(MOVE_CURR)
-		      || is_move_valid( ptree, MOVE_CURR, turn ) );
-	      return value;
-	    }
-	  
-	  DOut( "\nnull passed" );
-	  
-	  if ( value == - ( score_mate1ply - ply ) )
-	    {
-	      state_node |= node_mate_threat;
-	    }
-	}
-    }
-
-  /* recursive iterative-deepening for pv nodes */
-  if ( ! ptree->amove_hash[ply]
-       && depth >= 3*PLY_INC
-       && ( ( alpha == root_alpha && beta == root_beta )
-	    || ( alpha == -root_beta && beta == -root_alpha ) ) )
-    {
-      if ( depth >= REJEC_MIN_DEPTH ) { sub_rejections( ptree, turn, ply ); }
-      value = search( ptree, -score_bound, beta, turn, depth-2*PLY_INC, ply,
-		      node_do_mate | node_do_recap );
-      if ( SEARCH_ABORT ) { return 0; }
-
-      if ( beta <= value && IsMove(MOVE_CURR) )
-	{
-	  ptree->amove_hash[ply] = MOVE_CURR;
-	}
-      else if ( value < beta && ply <= (int)ptree->pv[ply-1].length )
-	{
-	  assert( -score_bound < value );
-	  ptree->amove_hash[ply] = ptree->pv[ply-1].a[ply];
-	}
-      assert( ! ptree->amove_hash[ply]
-	      || is_move_valid( ptree, ptree->amove_hash[ply], turn ) );
-
-      if ( depth >= REJEC_MIN_DEPTH ) { add_rejections( ptree, turn, ply ); }
-    }
-
-  {
-    int depth_reduced, first_move_expanded, new_depth, extension;
-    int state_node_new;
-
-    ptree->move_last[ply]             = ptree->move_last[ply-1];
-    ptree->anext_move[ply].next_phase = next_move_hash;
-    first_move_expanded               = 0;
-    evaluate( ptree, ply, turn );
-
-    /* expand all of off-springs */
-    while ( ptree->nsuc_check[ply]? gen_next_evasion( ptree, ply, turn ): gen_next_move( ptree, ply, turn ) ) {
-
-      DOut( "\nexpand %s (%" PRIu64 ")",
-	    str_CSA_move(MOVE_CURR), ptree->node_searched );
-
-      ptree->nsuc_check[ply+1] = 0U;
-      state_node_new           = ( node_do_mate | node_do_recap | node_do_null
-				   | node_do_futile );
-      extension                = 0;
-      depth_reduced            = 0;
-
-      /* decision of extensions */
-      if ( turn ? is_move_check_w( ptree, MOVE_CURR )
-                : is_move_check_b( ptree, MOVE_CURR ) )
-	{
-	  ptree->check_extension_done++;
-	  ptree->nsuc_check[ply+1]
-	    = (unsigned char)( ptree->nsuc_check[ply-1] + 1U );
-	  extension = EXT_CHECK;
-	}
-      else if ( ptree->nsuc_check[ply]
-		&& ptree->move_last[ply] - ptree->move_last[ply-1] == 1 )
-	{
-	  ptree->onerp_extension_done++;
-	  extension = EXT_ONEREP;
-	}
-      else if ( ! ptree->nsuc_check[ply]
-		&& ( state_node & node_do_recap )
-		&& I2To(MOVE_CURR) == I2To(MOVE_LAST)
-		&& ( MOVE_CURR == ptree->anext_move[ply].move_cap1
-		     || ( ( ptree->anext_move[ply].value_cap1
-			    < ( ptree->anext_move[ply].value_cap2
-				+ MT_CAP_PAWN ) )
-			  && MOVE_CURR == ptree->anext_move[ply].move_cap2 ))
-		&& ( UToCap(MOVE_LAST)
-		     || ( I2IsPromote(MOVE_LAST)
-			  && I2PieceMove(MOVE_LAST) != silver ) ) )
-	{
-	  ptree->recap_extension_done++;
-	  state_node_new = node_do_null | node_do_mate | node_do_futile;
-	  if ( ! I2IsPromote(MOVE_CURR)
-	       && I2PieceMove(MOVE_LAST) == UToCap(MOVE_LAST) )
-	    {
-	      extension = EXT_RECAP2;
-	    }
-	  else { extension = EXT_RECAP1; }
-	}
-
-      LimitExtension( extension, ply );
-
-      new_depth = depth + extension - PLY_INC;
-
-      if ( ! ptree->nsuc_check[ply+1] && ! ptree->nsuc_check[ply] )
-	{
-	  /* reductions */
-	  if ( PLY_INC <= new_depth
-	       && first_move_expanded
-	       && beta == alpha_old + 1
-	       && ! ( state_node & node_mate_threat )
-	       && ! UToCap(MOVE_CURR)
-	       && ( ! I2IsPromote(MOVE_CURR)
-		    || I2PieceMove(MOVE_CURR) == silver ) )
-	    {
-	      depth_reduced = PLY_INC;
-	      new_depth     -= PLY_INC;
-	    }
-
-	  /* futility pruning */
-	  if ( new_depth < 3*PLY_INC )
-	    {
-	      int diff  = estimate_score_diff( ptree, MOVE_CURR, turn );
-	      int bound = alpha;
-
-	      if      ( 2*PLY_INC <= new_depth ) { bound -= EFUTIL_MG2; }
-	      else if ( 1*PLY_INC <= new_depth ) { bound -= EFUTIL_MG1; }
-	      
-	      if ( eval_max_score( ptree, MOVE_CURR, ptree->stand_pat[ply],
-				   turn, diff ) <= bound )
-		{
-		  first_move_expanded = 1;
-		  continue;
-		}
-	    }
-	}
-
-      DOut( ", futil passed" );
-
-      MakeMove( turn, MOVE_CURR, ply );
-      if ( I2From(MOVE_CURR) < nsquare
-	   && ! ptree->nsuc_check[ply]
-	   && InCheck(turn) )
-	{
-	  UnMakeMove( turn, MOVE_CURR, ply );
-	  continue;
-	}
-
-      if ( ! ptree->nsuc_check[ply+1] && ! ptree->nsuc_check[ply] )
-	{
-	  evaluate( ptree, ply+1, Flip(turn) );
-	  assert( ptree->stand_pat[ply] != score_bound );
-
-	  /* reductions */
-	  if ( PLY_INC <= new_depth
-	       && first_move_expanded
-	       && ! depth_reduced
-	       && ! ( state_node & node_mate_threat )
-	       && ptree->stand_pat[ply] > -ptree->stand_pat[ply+1] )
-	    {
-	      depth_reduced  = PLY_INC;
-	      new_depth      -= PLY_INC;
-	    }
-	  
-	  /* futility pruning */
-	  if ( ( new_depth < PLY_INC && - ptree->stand_pat[ply+1] <= alpha )
-	       || ( new_depth < 2*PLY_INC
-		    && - ptree->stand_pat[ply+1] <= alpha - EFUTIL_MG1 )
-	       || ( new_depth < 3*PLY_INC
-		    && - ptree->stand_pat[ply+1] <= alpha - EFUTIL_MG2 ) )
-	    {
-	      first_move_expanded = 1;
-	      UnMakeMove( turn, MOVE_CURR, ply );
-	      continue;
-	    }
-	}
-
-      if ( ! first_move_expanded )
-	{
-	  value = -search( ptree, -beta, -alpha, Flip(turn), new_depth, ply+1,
-			   state_node_new );
-	}
-      else if ( ! depth_reduced )
-	{
-	  value = -search( ptree, -alpha-1, -alpha, Flip(turn), new_depth,
-	  		   ply + 1, state_node_new );
-	  if ( ! SEARCH_ABORT && alpha < value && beta != alpha+1 )
-	    {
-	      value = -search( ptree, -beta, -alpha, Flip(turn), new_depth,
-			       ply + 1, state_node_new );
-	    }
-	}
-      else {
-	value = -search( ptree, -alpha-1, -alpha, Flip(turn), new_depth,
-			 ply + 1, state_node_new );
-	if ( ! SEARCH_ABORT && alpha < value )
-	  {
-	    new_depth += depth_reduced;
-	    value = -search( ptree, -beta, -alpha, Flip(turn), new_depth,
-			     ply+1, state_node_new );
-	  }
-      }
-
-      if ( SEARCH_ABORT )
-	{
-	  UnMakeMove( turn, MOVE_CURR, ply );
-	  if ( depth >= REJEC_MIN_DEPTH )
-	    {
-	      sub_rejections( ptree, turn, ply );
-	    }
-	  return 0;
-	}
-
-      UnMakeMove( turn, MOVE_CURR, ply );
-
-      if ( alpha < value )
-	{
-	  if ( new_depth < PLY_INC
-	       && ! ptree->nsuc_check[ply+1]
-	       && ptree->stand_pat[ply] != score_bound )
-	    {
-	      check_futile_score_quies( ptree, MOVE_CURR,
-					ptree->stand_pat[ply],
-					-ptree->stand_pat[ply+1], turn );
-	    }
-
-	  if ( beta <= value )
-	    {
-	      DOut( ", beta cut (%" PRIu64 ")\n", ptree->node_searched );
-
-	      history( ptree, ply, depth, turn, MOVE_CURR );
-	      hash_store( ptree, ply, depth, turn, value_lower, value,
-			  MOVE_CURR, state_node );
-
-	      ptree->fail_high++;
-	      if ( ! first_move_expanded ) { ptree->fail_high_first++; }
-	      
-	      if ( depth >= REJEC_MIN_DEPTH )
-		{
-		  sub_rejections( ptree, turn, ply );
-		}
-
-	      assert( is_move_valid( ptree, MOVE_CURR, turn ) );
-	      return value;
-	    }
-	}
-      if ( alpha < value ) { alpha = value; }
-
-      first_move_expanded = 1;
-#if defined(TLP)
-      if ( tlp_idle && depth >= TLP_DEPTH_SPLIT )
-	{
-	  ptree->tlp_alpha      = (short)alpha;
-	  ptree->tlp_beta       = (short)beta;
-	  ptree->tlp_value      = (short)alpha;
-	  ptree->tlp_depth      = (unsigned char)depth;
-	  ptree->tlp_state_node = (unsigned char)state_node;
-	  ptree->tlp_turn       = (char)turn;
-	  ptree->tlp_ply        = (char)ply;
-	  if ( tlp_split( ptree ) )
-	    {
-	      if ( SEARCH_ABORT ) { return 0; }
-	      value = ptree->tlp_best;
-	      if ( alpha < value )
-		{
-		  if ( beta <= value )
-		    {
-		      if ( depth >= REJEC_MIN_DEPTH )
-			{
-			  sub_rejections( ptree, turn, ply );
-			}
-		      assert( is_move_valid( ptree, MOVE_CURR, turn ) );
-		      return value;
-		    }
-		  alpha = value;
-		}
-	      break;
-	    }
-	}
-#endif
-    }
-
-    DOut( "\nall searched (%" PRIu64 ")\n", ptree->node_searched );
-
-    if ( depth >= REJEC_MIN_DEPTH ) { sub_rejections( ptree, turn, ply ); }
-
-    if ( ! first_move_expanded )
-      {
-#if ! defined(MINIMUM)
-	if ( (int)I2From( ptree->current_move[ply-1] ) == Drop2From( pawn ) )
-	  {
-	    out_warning( "A checkmate by dropping pawn!!" );
-	  }
-#endif
-	if ( alpha != alpha_old ) { pv_close( ptree, ply, 0 ); } 
-	return alpha;
-      }
-
-
-    if ( alpha <= - ( score_mate1ply + 2 - ply ) )
-      {
-#if ! defined(MINIMUM)
-	out_warning( "A node returns a value lower than mate." );
-#endif
-	if ( alpha_old < -score_inferior && -score_inferior < beta )
-	  {
-	    pv_close( ptree, ply, turn ? black_superi_rep : white_superi_rep );
-	  }
-	MOVE_CURR = MOVE_NA;
-	return -score_inferior;
-      }
-
-    if ( alpha != alpha_old )
-      {
-	history( ptree, ply, depth, turn, ptree->pv[ply].a[ply] );
-
-	pv_copy( ptree, ply );
-
-#if ! defined(MINIMUM)
-	if ( ! ( game_status & flag_learning ) )
-#endif
-	  {
-	    hash_store( ptree, ply, depth, turn, value_exact, alpha,
-			ptree->pv[ply].a[ply], state_node );
-	  }
-      }
     else {
-      hash_store( ptree, ply, depth, turn, value_upper, alpha, MOVE_NA,
-		  state_node );
+        value = score_mate1ply + 1 - ply;
+        if ( value <= alpha ) { return value; }
     }
-  }
+
+    #if defined(NO_NULL_PRUNE)
+    state_node &= ~node_do_null;
+    #endif
+
+    ptree->amove_hash[ply] = 0;
+    #if ! defined(MINIMUM)
+    if ( ! ( game_status & flag_learning ) )
+    #endif
+    {
+        /* probe the transposition table */
+        int tv = hash_probe( ptree, ply, depth, turn, alpha, beta, state_node );
+        switch ( tv )
+        {
+            case value_exact:
+            if ( alpha < HASH_VALUE )
+            {
+                if ( HASH_VALUE < beta ) { pv_close( ptree, ply, hash_hit ); }
+                else {
+                    MOVE_CURR = ptree->amove_hash[ply];
+                    assert( is_move_valid( ptree, MOVE_CURR, turn ) );
+                }
+            }
+            return HASH_VALUE;
+	  
+            case value_lower:
+            MOVE_CURR = ptree->amove_hash[ply];
+            assert( beta <= HASH_VALUE );
+            assert( ! IsMove(MOVE_CURR)
+            || is_move_valid( ptree, MOVE_CURR, turn ) );
+            if ( beta == alpha_old + 1 ) { return HASH_VALUE; }
+            break;
+	  
+            case value_upper:
+            assert( HASH_VALUE <= alpha );
+            if ( beta == alpha_old + 1 ) { return HASH_VALUE; }
+            break;
+	  
+            default:
+            state_node = tv;
+        }
+    }
+
+    DOut( "\nhash cut passed" );
+
+    if ( depth >= REJEC_MIN_DEPTH ) { add_rejections( ptree, turn, ply ); }
   
-  return alpha;
+
+    if ( ! ptree->nsuc_check[ply] )
+    {
+        /* detect a move mates in 1-ply */
+        if ( state_node & node_do_mate )
+        {
+            MOVE_CURR = IsMateIn1Ply(turn);
+            if ( MOVE_CURR )
+            {
+                value = score_mate1ply + 1 - ply;
+
+                hash_store( ptree, ply, depth, turn, value_exact, value,MOVE_CURR, 0 );
+
+                if ( alpha < value
+                && value < beta ) { pv_close( ptree, ply, mate_search ); }
+
+                if ( depth >= REJEC_MIN_DEPTH )
+                {
+                sub_rejections( ptree, turn, ply );
+                }
+                assert( is_move_valid( ptree, MOVE_CURR, turn ) );
+                return value;
+            }
+        }
+
+        /* null move pruning */
+        if ( 2*PLY_INC <= depth && ( state_node & node_do_null ) && beta == alpha_old + 1 && beta <= evaluate( ptree, ply, turn ) )
+        {
+            int null_depth, nrep;
+	  
+            null_depth = NullDepth(depth);
+            nrep       = root_nrep + ply - 1;
+
+            MOVE_CURR                   = MOVE_PASS;
+            ptree->move_last[ply]       = ptree->move_last[ply-1];
+            ptree->stand_pat[ply+1]     = (short)( - ptree->stand_pat[ply] );
+            ptree->nsuc_check[ply+1]    = 0;
+            ptree->rep_board_list[nrep] = HASH_KEY;
+            ptree->rep_hand_list[nrep]  = HAND_B;
+            ptree->null_pruning_tried++;
+
+            value = -search( ptree, -beta, 1-beta, Flip(turn), null_depth,ply+1, node_do_mate | node_do_recap | node_do_futile );
+            if ( SEARCH_ABORT )
+            {
+                if ( depth >= REJEC_MIN_DEPTH )
+                {
+                    sub_rejections( ptree, turn, ply );
+                }
+                return 0;
+            }  
+            if ( beta <= value )
+            {
+                ptree->null_pruning_done++;
+                if ( null_depth < PLY_INC )
+                {
+                    hash_store( ptree, ply, depth, turn, value_lower,
+                    value, MOVE_NA, state_node );
+                }
+                if ( depth >= REJEC_MIN_DEPTH )
+                {
+                    sub_rejections( ptree, turn, ply );
+                }
+                DOut( "\nnull move cut!\n" );
+                assert( ! IsMove(MOVE_CURR) || is_move_valid( ptree, MOVE_CURR, turn ) );
+                return value;
+            }
+            DOut( "\nnull passed" );
+            if ( value == - ( score_mate1ply - ply ) )
+            {
+                state_node |= node_mate_threat;
+            }
+        }
+    }
+
+    /* recursive iterative-deepening for pv nodes */
+    if ( ! ptree->amove_hash[ply] && depth >= 3*PLY_INC && ( ( alpha == root_alpha && beta == root_beta ) || ( alpha == -root_beta && beta == -root_alpha ) ) )
+    {
+        if ( depth >= REJEC_MIN_DEPTH ) { sub_rejections( ptree, turn, ply ); }
+        value = search( ptree, -score_bound, beta, turn, depth-2*PLY_INC, ply,
+        node_do_mate | node_do_recap );
+        if ( SEARCH_ABORT ) { return 0; }
+
+        if ( beta <= value && IsMove(MOVE_CURR) )
+        {
+            ptree->amove_hash[ply] = MOVE_CURR;
+        }
+        else if ( value < beta && ply <= (int)ptree->pv[ply-1].length )
+        {
+            assert( -score_bound < value );
+            ptree->amove_hash[ply] = ptree->pv[ply-1].a[ply];
+        }
+        assert( ! ptree->amove_hash[ply] || is_move_valid( ptree, ptree->amove_hash[ply], turn ) );
+
+        if ( depth >= REJEC_MIN_DEPTH ) { add_rejections( ptree, turn, ply ); }
+    }
+
+    {
+        //‚±‚±‚©‚ç‚ªƒƒCƒ“‚Ì’Tõ•”
+        int depth_reduced, first_move_expanded, new_depth, extension;
+        int state_node_new;
+
+        ptree->move_last[ply]             = ptree->move_last[ply-1];
+        ptree->anext_move[ply].next_phase = next_move_hash;
+        first_move_expanded               = 0;
+        evaluate( ptree, ply, turn );
+
+        /* expand all of off-springs */
+        while ( ptree->nsuc_check[ply]? gen_next_evasion( ptree, ply, turn ): gen_next_move( ptree, ply, turn ) ) {
+            DOut( "\nexpand %s (%" PRIu64 ")",
+            str_CSA_move(MOVE_CURR), ptree->node_searched );
+
+            ptree->nsuc_check[ply+1] = 0U;
+            state_node_new           = ( node_do_mate | node_do_recap | node_do_null | node_do_futile );
+            extension                = 0;
+            depth_reduced            = 0;
+
+            /* decision of extensions */
+            if ( turn ? is_move_check_w( ptree, MOVE_CURR ) : is_move_check_b( ptree, MOVE_CURR ) )
+            {
+                ptree->check_extension_done++;
+                ptree->nsuc_check[ply+1] = (unsigned char)( ptree->nsuc_check[ply-1] + 1U );
+                extension = EXT_CHECK;
+            }
+            else if ( ptree->nsuc_check[ply] && ptree->move_last[ply] - ptree->move_last[ply-1] == 1 )
+            {
+                ptree->onerp_extension_done++;
+                extension = EXT_ONEREP;
+            }
+            else if ( ! ptree->nsuc_check[ply] && ( state_node & node_do_recap ) && I2To(MOVE_CURR) == I2To(MOVE_LAST) && ( MOVE_CURR == ptree->anext_move[ply].move_cap1 || ( ( ptree->anext_move[ply].value_cap1 < ( ptree->anext_move[ply].value_cap2 + MT_CAP_PAWN ) ) && MOVE_CURR == ptree->anext_move[ply].move_cap2 )) && ( UToCap(MOVE_LAST) || ( I2IsPromote(MOVE_LAST) && I2PieceMove(MOVE_LAST) != silver ) ) )
+            {
+                ptree->recap_extension_done++;
+                state_node_new = node_do_null | node_do_mate | node_do_futile;
+                if ( ! I2IsPromote(MOVE_CURR) && I2PieceMove(MOVE_LAST) == UToCap(MOVE_LAST) )
+                {
+                    extension = EXT_RECAP2;
+                }
+                else { extension = EXT_RECAP1; }
+            }
+
+            LimitExtension( extension, ply );
+
+            new_depth = depth + extension - PLY_INC;
+
+            if ( ! ptree->nsuc_check[ply+1] && ! ptree->nsuc_check[ply] )
+            {
+                /* reductions */
+                if ( PLY_INC <= new_depth && first_move_expanded && beta == alpha_old + 1 && ! ( state_node & node_mate_threat ) && ! UToCap(MOVE_CURR) && ( ! I2IsPromote(MOVE_CURR) || I2PieceMove(MOVE_CURR) == silver ) )
+                {
+                    depth_reduced = PLY_INC;
+                    new_depth     -= PLY_INC;
+                }
+
+                /* futility pruning */
+                if ( new_depth < 3*PLY_INC )
+                {
+                    int diff  = estimate_score_diff( ptree, MOVE_CURR, turn );
+                    int bound = alpha;
+
+                    if      ( 2*PLY_INC <= new_depth ) { bound -= EFUTIL_MG2; }
+                    else if ( 1*PLY_INC <= new_depth ) { bound -= EFUTIL_MG1; }
+	      
+                    if ( eval_max_score( ptree, MOVE_CURR, ptree->stand_pat[ply],turn, diff ) <= bound )
+                    {
+                        first_move_expanded = 1;
+                        continue;
+                    }
+                }
+            }
+
+            DOut( ", futil passed" );
+
+            MakeMove( turn, MOVE_CURR, ply );
+            if ( I2From(MOVE_CURR) < nsquare && ! ptree->nsuc_check[ply] && InCheck(turn) )
+            {
+                UnMakeMove( turn, MOVE_CURR, ply );
+                continue;
+            }
+
+            if ( ! ptree->nsuc_check[ply+1] && ! ptree->nsuc_check[ply] )
+            {
+                evaluate( ptree, ply+1, Flip(turn) );
+                assert( ptree->stand_pat[ply] != score_bound );
+
+                /* reductions */
+                if ( PLY_INC <= new_depth && first_move_expanded && ! depth_reduced && ! ( state_node & node_mate_threat ) && ptree->stand_pat[ply] > -ptree->stand_pat[ply+1] )
+                {
+                    depth_reduced  = PLY_INC;
+                    new_depth      -= PLY_INC;
+                }
+	  
+                /* futility pruning */
+                if ( ( new_depth < PLY_INC && - ptree->stand_pat[ply+1] <= alpha ) || ( new_depth < 2*PLY_INC && - ptree->stand_pat[ply+1] <= alpha - EFUTIL_MG1 ) || ( new_depth < 3*PLY_INC && - ptree->stand_pat[ply+1] <= alpha - EFUTIL_MG2 ) )
+                {
+                    first_move_expanded = 1;
+                    UnMakeMove( turn, MOVE_CURR, ply );
+                    continue;
+                }
+            }
+
+            if ( ! first_move_expanded )
+            {
+                value = -search( ptree, -beta, -alpha, Flip(turn), new_depth, ply+1,state_node_new );
+            }
+            else if ( ! depth_reduced )
+            {
+                value = -search( ptree, -alpha-1, -alpha, Flip(turn), new_depth,ply + 1, state_node_new );
+                if ( ! SEARCH_ABORT && alpha < value && beta != alpha+1 )
+                {
+                    value = -search( ptree, -beta, -alpha, Flip(turn), new_depth,ply + 1, state_node_new );
+                }
+            }
+            else {
+                value = -search( ptree, -alpha-1, -alpha, Flip(turn), new_depth,ply + 1, state_node_new );
+                if ( ! SEARCH_ABORT && alpha < value )
+                {
+                    new_depth += depth_reduced;
+                    value = -search( ptree, -beta, -alpha, Flip(turn), new_depth,ply+1, state_node_new );
+                }
+            }
+
+            if ( SEARCH_ABORT )
+            {
+                UnMakeMove( turn, MOVE_CURR, ply );
+                if ( depth >= REJEC_MIN_DEPTH )
+                {
+                    sub_rejections( ptree, turn, ply );
+                }
+                return 0;
+            }
+
+            UnMakeMove( turn, MOVE_CURR, ply );
+
+            if ( alpha < value )
+            {
+                if ( new_depth < PLY_INC && ! ptree->nsuc_check[ply+1] && ptree->stand_pat[ply] != score_bound )
+                {
+                    check_futile_score_quies( ptree, MOVE_CURR,ptree->stand_pat[ply],-ptree->stand_pat[ply+1], turn );
+                }
+
+                if ( beta <= value )
+                {
+                    DOut( ", beta cut (%" PRIu64 ")\n", ptree->node_searched );
+
+                    history( ptree, ply, depth, turn, MOVE_CURR );
+                    hash_store( ptree, ply, depth, turn, value_lower, value,
+                    MOVE_CURR, state_node );
+
+                    ptree->fail_high++;
+                    if ( ! first_move_expanded ) { ptree->fail_high_first++; }
+	      
+                    if ( depth >= REJEC_MIN_DEPTH )
+                    {
+                        sub_rejections( ptree, turn, ply );
+                    }
+
+                    assert( is_move_valid( ptree, MOVE_CURR, turn ) );
+                    return value;
+                }
+            }
+            if ( alpha < value ) { alpha = value; }
+
+            first_move_expanded = 1;
+            #if defined(TLP)
+            if ( tlp_idle && depth >= TLP_DEPTH_SPLIT )
+            {
+                ptree->tlp_alpha      = (short)alpha;
+                ptree->tlp_beta       = (short)beta;
+                ptree->tlp_value      = (short)alpha;
+                ptree->tlp_depth      = (unsigned char)depth;
+                ptree->tlp_state_node = (unsigned char)state_node;
+                ptree->tlp_turn       = (char)turn;
+                ptree->tlp_ply        = (char)ply;
+                if ( tlp_split( ptree ) )
+                {
+                    if ( SEARCH_ABORT ) { return 0; }
+                    value = ptree->tlp_best;
+                    if ( alpha < value )
+                    {
+                        if ( beta <= value )
+                        {
+                            if ( depth >= REJEC_MIN_DEPTH )
+                            {
+                                sub_rejections( ptree, turn, ply );
+                            }
+                            assert( is_move_valid( ptree, MOVE_CURR, turn ) );
+                            return value;
+                        }
+                        alpha = value;
+                    }
+                    break;
+                }
+            }
+            #endif
+        }
+
+        DOut( "\nall searched (%" PRIu64 ")\n", ptree->node_searched );
+
+        if ( depth >= REJEC_MIN_DEPTH ) { sub_rejections( ptree, turn, ply ); }
+
+        if ( ! first_move_expanded )
+        {
+            #if ! defined(MINIMUM)
+            if ( (int)I2From( ptree->current_move[ply-1] ) == Drop2From( pawn ) )
+            {
+                out_warning( "A checkmate by dropping pawn!!" );
+            }
+            #endif
+            if ( alpha != alpha_old ) { pv_close( ptree, ply, 0 ); } 
+            return alpha;
+        }
+
+
+        if ( alpha <= - ( score_mate1ply + 2 - ply ) )
+        {
+            #if ! defined(MINIMUM)
+            out_warning( "A node returns a value lower than mate." );
+            #endif
+            if ( alpha_old < -score_inferior && -score_inferior < beta )
+            {
+                pv_close( ptree, ply, turn ? black_superi_rep : white_superi_rep );
+            }
+            MOVE_CURR = MOVE_NA;
+            return -score_inferior;
+        }
+
+        if ( alpha != alpha_old )
+        {
+            history( ptree, ply, depth, turn, ptree->pv[ply].a[ply] );
+
+            pv_copy( ptree, ply );
+
+            #if ! defined(MINIMUM)
+            if ( ! ( game_status & flag_learning ) )
+            #endif
+            {
+                hash_store( ptree, ply, depth, turn, value_exact, alpha,
+                ptree->pv[ply].a[ply], state_node );
+            }
+        }
+        else {
+            hash_store( ptree, ply, depth, turn, value_upper, alpha, MOVE_NA,state_node );
+        }
+    }
+  
+    return alpha;
 }
 
 
