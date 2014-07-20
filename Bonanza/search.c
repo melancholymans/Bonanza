@@ -276,7 +276,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
         evaluate( ptree, ply, turn );
 
         /* expand all of off-springs */
-        while ( ptree->nsuc_check[ply]? gen_next_evasion( ptree, ply, turn ): gen_next_move( ptree, ply, turn ) ) {
+        while ( ptree->nsuc_check[ply] ? gen_next_evasion( ptree, ply, turn ): gen_next_move( ptree, ply, turn ) ) {
             DOut( "\nexpand %s (%" PRIu64 ")",
             str_CSA_move(MOVE_CURR), ptree->node_searched );
 
@@ -340,7 +340,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
 
             DOut( ", futil passed" );
 
-            MakeMove( turn, MOVE_CURR, ply );
+            MakeMove( turn, MOVE_CURR, ply );   //メインのMakeMove
             if ( I2From(MOVE_CURR) < nsquare && ! ptree->nsuc_check[ply] && InCheck(turn) )
             {
                 UnMakeMove( turn, MOVE_CURR, ply );
@@ -367,7 +367,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
                     continue;
                 }
             }
-
+            //探索木のサーチ部
             if ( ! first_move_expanded )
             {
                 value = -search( ptree, -beta, -alpha, Flip(turn), new_depth, ply+1,state_node_new );
@@ -388,7 +388,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
                     value = -search( ptree, -beta, -alpha, Flip(turn), new_depth,ply+1, state_node_new );
                 }
             }
-
+            //探索木のサーチ部終了
             if ( SEARCH_ABORT )
             {
                 UnMakeMove( turn, MOVE_CURR, ply );
@@ -399,7 +399,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
                 return 0;
             }
 
-            UnMakeMove( turn, MOVE_CURR, ply );
+            UnMakeMove( turn, MOVE_CURR, ply );     //メインのUnMakeMove
 
             if ( alpha < value )
             {
@@ -462,7 +462,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
                 }
             }
             #endif
-        }
+        }   //メインの探索部終了
 
         DOut( "\nall searched (%" PRIu64 ")\n", ptree->node_searched );
 
@@ -479,8 +479,7 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
             if ( alpha != alpha_old ) { pv_close( ptree, ply, 0 ); } 
             return alpha;
         }
-
-
+        //評価値更新部
         if ( alpha <= - ( score_mate1ply + 2 - ply ) )
         {
             #if ! defined(MINIMUM)
@@ -512,7 +511,6 @@ int search( tree_t * restrict ptree, int alpha, int beta, int turn, int depth,in
             hash_store( ptree, ply, depth, turn, value_upper, alpha, MOVE_NA,state_node );
         }
     }
-  
     return alpha;
 }
 

@@ -222,93 +222,93 @@ int gen_next_move( tree_t * restrict ptree, int ply, int turn )
 
 int gen_next_evasion( tree_t * restrict ptree, int ply, int turn )
 {
-  switch ( ptree->anext_move[ply].next_phase )
+    switch ( ptree->anext_move[ply].next_phase )
     {
-    case next_evasion_hash:
-      ptree->move_last[ply] = GenEvasion( turn, ptree->move_last[ply] );
+        case next_evasion_hash:
+            ptree->move_last[ply] = GenEvasion( turn, ptree->move_last[ply] );
 
-      if ( ptree->amove_hash[ply] )
-	{
-#if ! defined(MINIMUM)
-	  unsigned int * restrict p;
+            if ( ptree->amove_hash[ply] )
+            {
+                #if ! defined(MINIMUM)
+                unsigned int * restrict p;
 	  
-	  for ( p = ptree->move_last[ply-1]; p < ptree->move_last[ply]; p++ )
-	    if ( *p == ptree->amove_hash[ply] ) { break; }
+                for ( p = ptree->move_last[ply-1]; p < ptree->move_last[ply]; p++ )
+                if ( *p == ptree->amove_hash[ply] ) { break; }
 	  
-	  if ( *p != ptree->amove_hash[ply] )
-	    {
-	      out_warning( "An invalid hash evasion-move is found!!" );
-	      out_board( ptree, stdout, 0, 0 );
-	      Out( "%c%s\n", ach_turn[turn],
-		   str_CSA_move(ptree->amove_hash[ply]) );
-	      Out( "hash key = %" PRIu64 ", hand = %u, turn = %d\n",
-		   HASH_KEY, HAND_B, turn );
-	      ptree->amove_hash[ply] = 0U;
-	    }
-	  else
-#endif
-	    {
-	      ptree->anext_move[ply].next_phase = next_evasion_genall;
-	      ptree->current_move[ply]          = ptree->amove_hash[ply];
-	      return 1;
-	    }
-	}
+                if ( *p != ptree->amove_hash[ply] )
+                {
+                out_warning( "An invalid hash evasion-move is found!!" );
+                out_board( ptree, stdout, 0, 0 );
+                Out( "%c%s\n", ach_turn[turn],
+                str_CSA_move(ptree->amove_hash[ply]) );
+                Out( "hash key = %" PRIu64 ", hand = %u, turn = %d\n",
+                HASH_KEY, HAND_B, turn );
+                ptree->amove_hash[ply] = 0U;
+                }
+                else
+                #endif
+                {
+                ptree->anext_move[ply].next_phase = next_evasion_genall;
+                ptree->current_move[ply]          = ptree->amove_hash[ply];
+                return 1;
+                }
+            }
 
-    case next_evasion_genall:
-      {
-	unsigned int * restrict pmove;
-	int * restrict psortv;
-	unsigned int move;
-	int n, i, j, sortv;
+        case next_evasion_genall:
+        {
+            unsigned int * restrict pmove;
+            int * restrict psortv;
+            unsigned int move;
+            int n, i, j, sortv;
 
-	ptree->anext_move[ply].next_phase = next_evasion_misc;
-	ptree->anext_move[ply].move_last = pmove = ptree->move_last[ply-1];
-	n = (int)( ptree->move_last[ply] - pmove );
-	psortv = ptree->sort_value;
+            ptree->anext_move[ply].next_phase = next_evasion_misc;
+            ptree->anext_move[ply].move_last = pmove = ptree->move_last[ply-1];
+            n = (int)( ptree->move_last[ply] - pmove );
+            psortv = ptree->sort_value;
 
-	for ( i = n-1; i >= 0; i-- )
-	  {
-	    move = pmove[i];
-	    if ( move == ptree->amove_hash[ply] )
-	      {
-		sortv    = INT_MIN;
-		pmove[i] = 0;
-	      }
-	    else if ( I2PieceMove(move) == king )
-	      {
-		sortv = p_value_ex[UToCap(move)+15] * 2;
-	      }
-	    else {
-	      sortv  = swap( ptree, move, INT_MIN, INT_MAX, turn );
-	      sortv += estimate_score_diff( ptree, move, turn );
-	    }
-	    psortv[i] = sortv;
-	  }
+            for ( i = n-1; i >= 0; i-- )
+            {
+                move = pmove[i];
+                if ( move == ptree->amove_hash[ply] )
+                {
+                sortv    = INT_MIN;
+                pmove[i] = 0;
+                }
+                else if ( I2PieceMove(move) == king )
+                {
+                sortv = p_value_ex[UToCap(move)+15] * 2;
+                }
+                else {
+                sortv  = swap( ptree, move, INT_MIN, INT_MAX, turn );
+                sortv += estimate_score_diff( ptree, move, turn );
+                }
+                psortv[i] = sortv;
+            }
 
-	/* insertion sort */
-	psortv[n] = INT_MIN;
-	for ( i = n-2; i >= 0; i-- )
-	  {
-	    sortv = psortv[i];  move = pmove[i];
-	    for ( j = i+1; psortv[j] > sortv; j++ )
-	      {
-		psortv[j-1] = psortv[j];  pmove[j-1] = pmove[j];
-	      }
-	    psortv[j-1] = sortv;  pmove[j-1] = move;
-	  }
-      }
+            /* insertion sort */
+            psortv[n] = INT_MIN;
+            for ( i = n-2; i >= 0; i-- )
+            {
+                sortv = psortv[i];  move = pmove[i];
+                for ( j = i+1; psortv[j] > sortv; j++ )
+                {
+                    psortv[j-1] = psortv[j];  pmove[j-1] = pmove[j];
+                }
+                psortv[j-1] = sortv;  pmove[j-1] = move;
+            }
+        }
 
-    default:
-      assert( ptree->anext_move[ply].next_phase == next_evasion_misc );
-      while ( ptree->anext_move[ply].move_last < ptree->move_last[ply] )
-	{
-	  if ( *( ptree->anext_move[ply].move_last ) )
-	    {
-	      ptree->current_move[ply] = *(ptree->anext_move[ply].move_last++);
-	      return 1;
-	    }
-	  ptree->anext_move[ply].move_last++;
-	}
+        default:
+            assert( ptree->anext_move[ply].next_phase == next_evasion_misc );
+            while ( ptree->anext_move[ply].move_last < ptree->move_last[ply] )
+            {
+                if ( *( ptree->anext_move[ply].move_last ) )
+                {
+                    ptree->current_move[ply] = *(ptree->anext_move[ply].move_last++);
+                    return 1;
+                }
+                ptree->anext_move[ply].move_last++;
+            }
     }
-  return 0;
+    return 0;
 }
